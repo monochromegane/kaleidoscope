@@ -13,12 +13,12 @@ import (
 )
 
 const (
-	DefaultPathName   = ".ipfs"
-	DefaultPathRoot   = "~/" + DefaultPathName
-	DefaultApiFile    = "api"
-	DefaultKeystore   = DefaultPathRoot + "/keystore"
-	EnvDir            = "IPFS_PATH"
-	EmptyDirMultiHash = "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
+	DefaultPathName     = ".ipfs"
+	DefaultPathRoot     = "~/" + DefaultPathName
+	DefaultApiFile      = "api"
+	DefaultKeystoreRoot = "keystore"
+	EnvDir              = "IPFS_PATH"
+	EmptyDirMultiHash   = "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
 )
 
 type IPFS struct {
