@@ -19,7 +19,17 @@ type Request struct {
 	Headers map[string]string
 }
 
-func NewRequest(url, command string, args ...string) *Request {
+type RequestOptions map[string]string
+
+func NewRequest(url, command string, opts RequestOptions, args ...string) *Request {
+	req := newRequest(url, command, args...)
+	for k, v := range opts {
+		req.Opts[k] = v
+	}
+	return req
+}
+
+func newRequest(url, command string, args ...string) *Request {
 	if !strings.HasPrefix(url, "http") {
 		url = "http://" + url
 	}
