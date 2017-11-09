@@ -71,6 +71,25 @@ func TestClientObjectPatchAddLink(t *testing.T) {
 	}
 }
 
+func TestClientCat(t *testing.T) {
+	expect := "Some value"
+
+	ipfs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, expect)
+	}))
+	defer ipfs.Close()
+
+	client := testClient(ipfs.URL)
+	value, err := client.Cat("QmSomeObjectHash", RequestOptions{})
+
+	if err != nil {
+		t.Errorf("Cat should not return error, but %s", err)
+	}
+	if string(value) != expect {
+		t.Errorf("Cat should return value (%s), but %s", expect, string(value))
+	}
+}
+
 func testClient(url string) Client {
 	ipfs, _ := NewIPFS(url)
 	return Client{

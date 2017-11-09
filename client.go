@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"mime/multipart"
 	"net/textproto"
 	"net/url"
@@ -89,6 +90,21 @@ func (c Client) ObjectPatchAddLink(root, name, ref string, opts RequestOptions) 
 	}
 
 	return out.Hash, nil
+}
+
+func (c Client) Cat(path string, opts RequestOptions) ([]byte, error) {
+	req := NewRequest(c.ipfs.url, "cat", opts, path)
+	resp, err := req.Send(c.ipfs.client)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer resp.Close()
+
+	if resp.Error != nil {
+		return []byte{}, resp.Error
+	}
+
+	return ioutil.ReadAll(resp.Output)
 }
 
 func multiPartFromReader(name string, r io.Reader) (bytes.Buffer, string, error) {
