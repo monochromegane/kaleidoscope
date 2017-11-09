@@ -13,34 +13,26 @@ import (
 )
 
 type Keystore struct {
-	priv ci.PrivKey
+	priv        ci.PrivKey
+	persistence bool
 }
 
-func NewKeyStore(keypair string) (Keystore, error) {
-	baseDir := os.Getenv(EnvDir)
-	if baseDir == "" {
-		baseDir = DefaultPathRoot
-	}
+func NewKeyStore() Keystore {
+	return Keystore{persistence: true}
+}
 
-	baseDir, err := homedir.Expand(baseDir)
-	if err != nil {
-		return Keystore{}, err
+func (k *Keystore) Load(keypair string) error {
+	if k.persistence {
+		return k.loadFromFile(keypair)
+	} else {
+		// Use only for testing.
+		priv, _, err := ci.GenerateKeyPair(ci.RSA, 2048)
+		if err != nil {
+			return err
+		}
+		k.priv = priv
 	}
-
-	keystore := path.Join(baseDir, DefaultKeystoreRoot)
-	data, err := ioutil.ReadFile(filepath.Join(keystore, keypair))
-	if err != nil {
-		return Keystore{}, err
-	}
-
-	priv, err := ci.UnmarshalPrivateKey(data)
-	if err != nil {
-		return Keystore{}, err
-	}
-
-	return Keystore{
-		priv: priv,
-	}, nil
+	return nil
 }
 
 func (k Keystore) EncryptString(plain string) ([]byte, error) {
@@ -79,3 +71,56 @@ func (k Keystore) key() (*ci.RsaPublicKey, *ci.RsaPrivateKey, error) {
 	rsaPub := rsaPriv.GetPublic().(*ci.RsaPublicKey)
 	return rsaPub, rsaPriv, nil
 }
+
+func (k *Keystore) loadFromFile(keypair string) error {
+	baseDir := os.Getenv(EnvDir)
+	if baseDir == "" {
+		baseDir = DefaultPathRoot
+	}
+
+	baseDir, err := homedir.Expand(baseDir)
+	if err != nil {
+		return err
+	}
+
+	keystore := path.Join(baseDir, DefaultKeystoreRoot)
+	data, err := ioutil.ReadFile(filepath.Join(keystore, keypair))
+	if err != nil {
+		return err
+	}
+
+	priv, err := ci.UnmarshalPrivateKey(data)
+	if err != nil {
+		return err
+	}
+
+	k.priv = priv
+	return nil
+}
+
+// func NewKeyStore(keypair string) (Keystore, error) {
+// 	baseDir := os.Getenv(EnvDir)
+// 	if baseDir == "" {
+// 		baseDir = DefaultPathRoot
+// 	}
+//
+// 	baseDir, err := homedir.Expand(baseDir)
+// 	if err != nil {
+// 		return Keystore{}, err
+// 	}
+//
+// 	keystore := path.Join(baseDir, DefaultKeystoreRoot)
+// 	data, err := ioutil.ReadFile(filepath.Join(keystore, keypair))
+// 	if err != nil {
+// 		return Keystore{}, err
+// 	}
+//
+// 	priv, err := ci.UnmarshalPrivateKey(data)
+// 	if err != nil {
+// 		return Keystore{}, err
+// 	}
+//
+// 	return Keystore{
+// 		priv: priv,
+// 	}, nil
+// }

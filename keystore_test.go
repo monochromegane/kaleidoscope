@@ -3,8 +3,6 @@ package kaleidoscope
 import (
 	"strings"
 	"testing"
-
-	ci "github.com/libp2p/go-libp2p-crypto"
 )
 
 func TestKeystoreEncryptAndDecrypt(t *testing.T) {
@@ -41,6 +39,8 @@ func TestKeystorePeerID(t *testing.T) {
 }
 
 func testKeystore() Keystore {
-	priv, _, _ := ci.GenerateKeyPair(ci.RSA, 2048)
-	return Keystore{priv: priv}
+	keystore := NewKeyStore()
+	keystore.persistence = false
+	keystore.Load("dummy")
+	return keystore
 }
