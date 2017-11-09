@@ -60,7 +60,8 @@ func TestClientObjectPatchAddLink(t *testing.T) {
 	defer ipfs.Close()
 
 	client := testClient(ipfs.URL)
-	hash, err := client.ObjectPatchAddLink("QmSomeRootHash", "new_file.txt", "QmSomeObjectHash", RequestOptions{})
+	hash, err := client.ObjectPatchAddLink("QmSomeRootHash", "new_file.txt",
+		"QmSomeObjectHash", RequestOptions{})
 
 	if err != nil {
 		t.Errorf("ObjectPatchAddLink should not return error, but %s", err)
