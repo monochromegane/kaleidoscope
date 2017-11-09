@@ -1,9 +1,11 @@
 package kaleidoscope
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -42,6 +44,33 @@ func TestKaleidoScopeCreate(t *testing.T) {
 
 	if kes.head != expectForAddLink {
 		t.Errorf("Create should set current hash (%s), but %s", expectForAddLink, kes.head)
+	}
+}
+
+func TestKaleidoScopeGet(t *testing.T) {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(wrapWithMetadata("Some value"))
+	expect := buf.String()
+
+	ipfs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, expect)
+	}))
+	defer ipfs.Close()
+
+	kes := testKaleidoScope(ipfs.URL)
+	meta, value, err := kes.Get("some_key")
+
+	if err != nil {
+		t.Errorf("Get should not return error, but %s", err)
+	}
+	expects := strings.Split(expect, ",")[:2]
+	expectMeta, expectValue := expects[0], expects[1]
+
+	if string(meta) != expectMeta {
+		t.Errorf("Get should return meta (%s), but %s", expectMeta, string(meta))
+	}
+	if string(value) != expectValue {
+		t.Errorf("Get should return value (%s), but %s", expectValue, string(value))
 	}
 }
 

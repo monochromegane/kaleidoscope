@@ -32,8 +32,16 @@ func (k *Kaleidoscope) Set(key, value string) (string, error) {
 	return k.set(k.dbname, k.latest(), key, value)
 }
 
+func (k Kaleidoscope) Get(key string) ([]byte, []byte, error) {
+	value, err := k.client.Cat(k.latest()+"/"+key+"/value", RequestOptions{})
+	if err != nil {
+		return []byte{}, []byte{}, err
+	}
+	return value[0:10], value[11:], nil
+}
+
 func (k *Kaleidoscope) set(dbname, root, key, value string) (string, error) {
-	hash, err := k.client.Add("value", k.wrapWithMetadata(value),
+	hash, err := k.client.Add("value", wrapWithMetadata(value),
 		RequestOptions{"wrap-with-directory": "true"})
 	if err != nil {
 		return "", err
@@ -59,6 +67,6 @@ func (k Kaleidoscope) latest() string {
 	return k.head
 }
 
-func (k Kaleidoscope) wrapWithMetadata(value string) io.Reader {
+func wrapWithMetadata(value string) io.Reader {
 	return strings.NewReader(strconv.FormatInt(time.Now().Unix(), 10) + "," + value)
 }
