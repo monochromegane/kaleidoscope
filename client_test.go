@@ -124,6 +124,26 @@ func TestClientNamePublish(t *testing.T) {
 	}
 }
 
+func TestClientNameResolve(t *testing.T) {
+	expect := "QmSomeObjectHash"
+	expectPath := "/ipfs/" + expect
+
+	ipfs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, fmt.Sprintf(`{"Path":"/ipfs/%s"}`, expect))
+	}))
+	defer ipfs.Close()
+
+	client := testClient(ipfs.URL)
+	path, err := client.NameResolve("QmSomePeerID", RequestOptions{})
+
+	if err != nil {
+		t.Errorf("NameResolve should not return error, but %s", err)
+	}
+	if path != expectPath {
+		t.Errorf("NameResolve should return value (%s), but %s", expectPath, path)
+	}
+}
+
 func testClient(url string) Client {
 	ipfs, _ := NewIPFS(url)
 	return Client{

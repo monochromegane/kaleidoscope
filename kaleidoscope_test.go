@@ -63,8 +63,6 @@ func TestKaleidoScopeGet(t *testing.T) {
 	keystore.Load("dummy")
 	bs, _ := keystore.EncryptString(expect)
 
-	// expect := string(bs)
-
 	ipfs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write(bs)
 	}))

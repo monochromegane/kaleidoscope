@@ -41,14 +41,23 @@ func (k *Kaleidoscope) Create(dbname string, size int) (string, error) {
 }
 
 func (k *Kaleidoscope) Use(dbname string) error {
-	// get head
-
-	// load keypair
 	err := k.keystore.Load(dbname)
 	if err != nil {
 		return err
 	}
-	k.use(dbname, "")
+	ipns, err := k.keystore.PeerID()
+	if err != nil {
+		return err
+	}
+	head, err := k.client.NameResolve(ipns, RequestOptions{"nocache": "true"})
+	if err != nil {
+		return err
+	}
+	err = k.keystore.Load(dbname)
+	if err != nil {
+		return err
+	}
+	k.use(dbname, head)
 	return nil
 }
 
