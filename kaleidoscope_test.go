@@ -1,7 +1,6 @@
 package kaleidoscope
 
 import (
-	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -20,7 +19,9 @@ func TestKaleidoScopeCreate(t *testing.T) {
 	resForAddLink := `{"Hash":"%s"}`
 
 	ipfs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v0/add" {
+		if r.URL.Path == "/api/v0/key/gen" {
+			fmt.Fprintln(w, `{"Name":"some_key","Id":"QmSomePeerID"}`)
+		} else if r.URL.Path == "/api/v0/add" {
 			fmt.Fprintln(w, fmt.Sprintf(resForAdd, expectForAdd))
 		} else if r.URL.Path == "/api/v0/object/patch/add-link" {
 			fmt.Fprintln(w, fmt.Sprintf(resForAddLink, expectForAddLink))
@@ -29,7 +30,8 @@ func TestKaleidoScopeCreate(t *testing.T) {
 	defer ipfs.Close()
 
 	kes := testKaleidoScope(ipfs.URL)
-	dbhash, err := kes.Create(dbname)
+	kes.keystore.persistence = false
+	dbhash, err := kes.Create(dbname, 2048)
 
 	if err != nil {
 		t.Errorf("Create should not return error, but %s", err)
@@ -48,16 +50,22 @@ func TestKaleidoScopeCreate(t *testing.T) {
 }
 
 func TestKaleidoScopeGet(t *testing.T) {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(wrapWithMetadata("Some value"))
-	expect := buf.String()
+	expect := wrapWithMetadata("Some value")
+	keystore := NewKeyStore()
+	keystore.persistence = false
+	keystore.Load("dummy")
+	bs, _ := keystore.EncryptString(expect)
+
+	// expect := string(bs)
 
 	ipfs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, expect)
+		w.Write(bs)
 	}))
 	defer ipfs.Close()
 
 	kes := testKaleidoScope(ipfs.URL)
+	kes.keystore = keystore
+	kes.Use("dummy")
 	meta, value, err := kes.Get("some_key")
 
 	if err != nil {

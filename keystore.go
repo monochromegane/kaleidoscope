@@ -14,6 +14,7 @@ import (
 
 type Keystore struct {
 	priv        ci.PrivKey
+	keypair     string
 	persistence bool
 }
 
@@ -22,6 +23,9 @@ func NewKeyStore() Keystore {
 }
 
 func (k *Keystore) Load(keypair string) error {
+	if k.keypair == keypair {
+		return nil
+	}
 	if k.persistence {
 		return k.loadFromFile(keypair)
 	} else {
@@ -31,6 +35,7 @@ func (k *Keystore) Load(keypair string) error {
 			return err
 		}
 		k.priv = priv
+		k.keypair = keypair
 	}
 	return nil
 }
@@ -95,6 +100,7 @@ func (k *Keystore) loadFromFile(keypair string) error {
 	}
 
 	k.priv = priv
+	k.keypair = keypair
 	return nil
 }
 

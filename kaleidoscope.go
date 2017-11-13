@@ -1,16 +1,16 @@
 package kaleidoscope
 
 import (
-	"io"
+	"bytes"
 	"strconv"
-	"strings"
 	"time"
 )
 
 type Kaleidoscope struct {
-	dbname string
-	head   string
-	client Client
+	dbname   string
+	head     string
+	client   Client
+	keystore Keystore
 }
 
 func New() (Kaleidoscope, error) {
@@ -18,14 +18,38 @@ func New() (Kaleidoscope, error) {
 	if err != nil {
 		return Kaleidoscope{}, err
 	}
-
 	return Kaleidoscope{
-		client: client,
+		client:   client,
+		keystore: NewKeyStore(),
 	}, nil
 }
 
-func (k *Kaleidoscope) Create(dbname string) (string, error) {
+func (k *Kaleidoscope) Create(dbname string, size int) (string, error) {
+	err := k.client.KeyGen(dbname, RequestOptions{
+		"type": "rsa",
+		"size": strconv.Itoa(size),
+	})
+	if err != nil {
+		return "", err
+	}
+	err = k.keystore.Load(dbname)
+	if err != nil {
+		return "", err
+	}
+
 	return k.set(dbname, EmptyDirMultiHash, "__database_name", dbname)
+}
+
+func (k *Kaleidoscope) Use(dbname string) error {
+	// get head
+
+	// load keypair
+	err := k.keystore.Load(dbname)
+	if err != nil {
+		return err
+	}
+	k.use(dbname, "")
+	return nil
 }
 
 func (k *Kaleidoscope) Set(key, value string) (string, error) {
@@ -33,15 +57,23 @@ func (k *Kaleidoscope) Set(key, value string) (string, error) {
 }
 
 func (k Kaleidoscope) Get(key string) ([]byte, []byte, error) {
-	value, err := k.client.Cat(k.latest()+"/"+key+"/value", RequestOptions{})
+	enc, err := k.client.Cat(k.latest()+"/"+key+"/value", RequestOptions{})
 	if err != nil {
 		return []byte{}, []byte{}, err
 	}
-	return value[0:10], value[11:], nil
+	plain, err := k.keystore.Decrypt(enc)
+	if err != nil {
+		return []byte{}, []byte{}, err
+	}
+	return plain[0:10], plain[11:], nil
 }
 
 func (k *Kaleidoscope) set(dbname, root, key, value string) (string, error) {
-	hash, err := k.client.Add("value", wrapWithMetadata(value),
+	enc, err := k.keystore.EncryptString(wrapWithMetadata(value))
+	if err != nil {
+		return "", err
+	}
+	hash, err := k.client.Add("value", bytes.NewReader(enc),
 		RequestOptions{"wrap-with-directory": "true"})
 	if err != nil {
 		return "", err
@@ -67,6 +99,10 @@ func (k Kaleidoscope) latest() string {
 	return k.head
 }
 
-func wrapWithMetadata(value string) io.Reader {
-	return strings.NewReader(strconv.FormatInt(time.Now().Unix(), 10) + "," + value)
+func wrapWithMetadata(value string) string {
+	return strconv.FormatInt(time.Now().Unix(), 10) + "," + value
 }
+
+// func wrapWithMetadata(value string) io.Reader {
+// 	return strings.NewReader(strconv.FormatInt(time.Now().Unix(), 10) + "," + value)
+// }
