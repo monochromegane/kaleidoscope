@@ -68,6 +68,11 @@ func (k Kaleidoscope) Get(key string) ([]byte, []byte, error) {
 	return plain[0:10], plain[11:], nil
 }
 
+func (k Kaleidoscope) Save() error {
+	_, _, err := k.client.NamePublish(k.head, RequestOptions{"key": k.dbname})
+	return err
+}
+
 func (k *Kaleidoscope) set(dbname, root, key, value string) (string, error) {
 	enc, err := k.keystore.EncryptString(wrapWithMetadata(value))
 	if err != nil {

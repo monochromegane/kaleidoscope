@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestKaleidoScopeCreate(t *testing.T) {
+func TestKaleidoScopeCreateAndSave(t *testing.T) {
 	dbname := "dbname"
 
 	expectForAdd := "QmSomeLinkHash"
@@ -25,6 +25,8 @@ func TestKaleidoScopeCreate(t *testing.T) {
 			fmt.Fprintln(w, fmt.Sprintf(resForAdd, expectForAdd))
 		} else if r.URL.Path == "/api/v0/object/patch/add-link" {
 			fmt.Fprintln(w, fmt.Sprintf(resForAddLink, expectForAddLink))
+		} else if r.URL.Path == "/api/v0/name/publish" {
+			fmt.Fprintln(w, `{"Name":"QmSomeName","Value":"/ipfs/QmSomeValue"}`)
 		}
 	}))
 	defer ipfs.Close()
@@ -46,6 +48,11 @@ func TestKaleidoScopeCreate(t *testing.T) {
 
 	if kes.head != expectForAddLink {
 		t.Errorf("Create should set current hash (%s), but %s", expectForAddLink, kes.head)
+	}
+
+	err = kes.Save()
+	if err != nil {
+		t.Errorf("Save should not return error, but %s", err)
 	}
 }
 

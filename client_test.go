@@ -90,6 +90,40 @@ func TestClientCat(t *testing.T) {
 	}
 }
 
+func TestClientKeyGen(t *testing.T) {
+	ipfs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"Name":"some_key","Id":"QmSomePeerID"}`)
+	}))
+	defer ipfs.Close()
+
+	client := testClient(ipfs.URL)
+	err := client.KeyGen("some_key", RequestOptions{})
+
+	if err != nil {
+		t.Errorf("KeyGen should not return error, but %s", err)
+	}
+}
+
+func TestClientNamePublish(t *testing.T) {
+	expect := "QmSomeObjectHash"
+	expectPath := "/ipfs/" + expect
+
+	ipfs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, fmt.Sprintf(`{"Name":"QmSomeName","Value":"/ipfs/%s"}`, expect))
+	}))
+	defer ipfs.Close()
+
+	client := testClient(ipfs.URL)
+	_, value, err := client.NamePublish(expect, RequestOptions{})
+
+	if err != nil {
+		t.Errorf("NamePublish should not return error, but %s", err)
+	}
+	if value != expectPath {
+		t.Errorf("NamePublish should return value (%s), but %s", expectPath, value)
+	}
+}
+
 func testClient(url string) Client {
 	ipfs, _ := NewIPFS(url)
 	return Client{

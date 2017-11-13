@@ -30,6 +30,11 @@ type Object struct {
 	Hash string
 }
 
+type IPNS struct {
+	Name  string
+	Value string
+}
+
 func (c Client) Add(name string, r io.Reader, opts RequestOptions) (string, error) {
 	mp, contentType, err := multiPartFromReader(name, r)
 	if err != nil {
@@ -119,6 +124,26 @@ func (c Client) KeyGen(name string, opts RequestOptions) error {
 		return resp.Error
 	}
 	return nil
+}
+
+func (c Client) NamePublish(hash string, opts RequestOptions) (string, string, error) {
+	req := NewRequest(c.ipfs.url, "name/publish", opts, hash)
+	resp, err := req.Send(c.ipfs.client)
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Close()
+
+	if resp.Error != nil {
+		return "", "", err
+	}
+
+	var out IPNS
+	err = json.NewDecoder(resp.Output).Decode(&out)
+	if err != nil {
+		return "", "", err
+	}
+	return out.Name, out.Value, nil
 }
 
 func multiPartFromReader(name string, r io.Reader) (bytes.Buffer, string, error) {
