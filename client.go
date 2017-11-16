@@ -36,6 +36,10 @@ type IPNS struct {
 	Path  string
 }
 
+type Message struct {
+	Data string
+}
+
 func (c Client) Add(name string, r io.Reader, opts RequestOptions) (string, error) {
 	mp, contentType, err := multiPartFromReader(name, r)
 	if err != nil {
@@ -165,6 +169,39 @@ func (c Client) NameResolve(name string, opts RequestOptions) (string, error) {
 		return "", err
 	}
 	return out.Path, nil
+}
+
+func (c Client) PubSubPub(topic, payload string, opts RequestOptions) error {
+	req := NewRequest(c.ipfs.url, "pubsub/pub", opts, topic, payload)
+	resp, err := req.Send(c.ipfs.client)
+	if err != nil {
+		return err
+	}
+	defer resp.Close()
+
+	if resp.Error != nil {
+		return err
+	}
+	return nil
+}
+
+func (c Client) PubSubSub(topic string, opts RequestOptions) (Stream, error) {
+	req := NewRequest(c.ipfs.url, "pubsub/sub", opts, topic)
+	resp, err := req.Send(c.ipfs.client)
+	if err != nil {
+		return Stream{}, err
+	}
+
+	if resp.Error != nil {
+		return Stream{}, err
+	}
+
+	stream := Stream{
+		Data: make(chan string),
+		src:  resp.Output,
+	}
+	go stream.read()
+	return stream, nil
 }
 
 func multiPartFromReader(name string, r io.Reader) (bytes.Buffer, string, error) {
