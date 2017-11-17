@@ -71,6 +71,8 @@ func run(kes *kaleidoscope.Kaleidoscope, commands []string) (string, error) {
 	case "get":
 		_, out, err := kes.Get(commands[1])
 		return string(out), err
+	case "del":
+		return kes.Del(commands[1])
 	case "sync":
 		return "", kes.StartSync()
 	default:

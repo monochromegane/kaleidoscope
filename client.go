@@ -102,6 +102,27 @@ func (c Client) ObjectPatchAddLink(root, name, ref string, opts RequestOptions) 
 	return out.Hash, nil
 }
 
+func (c Client) ObjectPatchRmLink(root, name string, opts RequestOptions) (string, error) {
+	req := NewRequest(c.ipfs.url, "object/patch/rm-link", opts, root, name)
+	resp, err := req.Send(c.ipfs.client)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Close()
+
+	if resp.Error != nil {
+		return "", resp.Error
+	}
+
+	var out Object
+	err = json.NewDecoder(resp.Output).Decode(&out)
+	if err != nil {
+		return "", err
+	}
+
+	return out.Hash, nil
+}
+
 func (c Client) Cat(path string, opts RequestOptions) ([]byte, error) {
 	req := NewRequest(c.ipfs.url, "cat", opts, path)
 	resp, err := req.Send(c.ipfs.client)

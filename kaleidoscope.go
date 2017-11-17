@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -14,6 +15,7 @@ type Kaleidoscope struct {
 	client   Client
 	keystore Keystore
 	stream   Stream
+	mu       sync.Mutex
 }
 
 func New() (Kaleidoscope, error) {
@@ -65,6 +67,8 @@ func (k *Kaleidoscope) Use(dbname string) error {
 }
 
 func (k *Kaleidoscope) Set(key, value string) (string, error) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
 	return k.set(k.dbname, k.latest(), key, value)
 }
 
@@ -80,7 +84,37 @@ func (k Kaleidoscope) Get(key string) ([]byte, []byte, error) {
 	return plain[0:10], plain[11:], nil
 }
 
-func (k Kaleidoscope) Save() error {
+func (k *Kaleidoscope) Del(key string) (string, error) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	return k.del(key, true)
+}
+
+func (k *Kaleidoscope) del(key string, pub bool) (string, error) {
+	hash, err := k.client.ObjectPatchRmLink(k.latest(), key, RequestOptions{})
+	if err != nil {
+		return "", err
+	}
+	if pub && k.stream.IsRunning() {
+		ope := Operation{
+			Type:     "del",
+			Database: k.dbname,
+			Key:      key,
+			Hash:     "",
+		}
+		json, err := json.Marshal(ope)
+		if err != nil {
+			return "", err
+		}
+		k.client.PubSubPub(k.dbname, string(json), RequestOptions{})
+	}
+	k.use(k.dbname, hash)
+	return hash, nil
+}
+
+func (k *Kaleidoscope) Save() error {
+	k.mu.Lock()
+	defer k.mu.Unlock()
 	_, _, err := k.client.NamePublish(k.head, RequestOptions{"key": k.dbname})
 	return err
 }
@@ -101,8 +135,18 @@ func (k *Kaleidoscope) StartSync() error {
 			if ope.Database != k.dbname {
 				continue
 			}
-			if strings.ToLower(ope.Type) == "set" {
-				k.setHash(k.dbname, k.latest(), ope.Key, ope.Hash, false)
+			if typ := strings.ToLower(ope.Type); typ == "set" {
+				func() {
+					k.mu.Lock()
+					defer k.mu.Unlock()
+					k.setHash(k.dbname, k.latest(), ope.Key, ope.Hash, false)
+				}()
+			} else if typ == "del" {
+				func() {
+					k.mu.Lock()
+					defer k.mu.Unlock()
+					k.del(ope.Key, false)
+				}()
 			}
 		}
 	}()
@@ -157,13 +201,11 @@ func (k *Kaleidoscope) setHash(dbname, root, key, hash string, pub bool) (string
 }
 
 func (k *Kaleidoscope) use(dbname, head string) {
-	// TODO: Use mutex
 	k.dbname = dbname
 	k.head = head
 }
 
 func (k Kaleidoscope) latest() string {
-	// TODO: Use mutex
 	return k.head
 }
 
