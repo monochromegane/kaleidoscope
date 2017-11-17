@@ -37,6 +37,9 @@ func main() {
 		}
 		out, err := run(&kes, commands)
 		if err != nil {
+			if _, ok := err.(ExitError); ok {
+				break
+			}
 			fmt.Println(err.Error())
 			continue
 		}
@@ -75,9 +78,18 @@ func run(kes *kaleidoscope.Kaleidoscope, commands []string) (string, error) {
 		return kes.Del(commands[1])
 	case "sync":
 		return "", kes.StartSync()
+	case "exit":
+		return "", ExitError{}
 	default:
 		return "", fmt.Errorf("Unknown command: %s", commands[0])
 	}
+}
+
+type ExitError struct {
+}
+
+func (e ExitError) Error() string {
+	return "exit"
 }
 
 func compact(src []string) []string {
