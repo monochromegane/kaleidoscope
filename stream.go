@@ -33,3 +33,8 @@ func (s *Stream) Close() {
 	s.src.Close()
 	s.src = nil
 }
+
+func (s Stream) IsRunning() bool {
+	return s.src != nil
+
+}

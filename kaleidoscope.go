@@ -2,7 +2,9 @@ package kaleidoscope
 
 import (
 	"bytes"
+	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -11,6 +13,7 @@ type Kaleidoscope struct {
 	head     string
 	client   Client
 	keystore Keystore
+	stream   Stream
 }
 
 func New() (Kaleidoscope, error) {
@@ -82,6 +85,41 @@ func (k Kaleidoscope) Save() error {
 	return err
 }
 
+func (k *Kaleidoscope) StartSync() error {
+	stream, err := k.client.PubSubSub(k.dbname, RequestOptions{"discover": "true"})
+	if err != nil {
+		return err
+	}
+	k.stream = stream
+	go func() {
+		for data := range k.stream.Data {
+			var ope Operation
+			err := json.NewDecoder(strings.NewReader(data)).Decode(&ope)
+			if err != nil {
+				continue
+			}
+			if ope.Database != k.dbname {
+				continue
+			}
+			if strings.ToLower(ope.Type) == "set" {
+				k.setHash(k.dbname, k.latest(), ope.Key, ope.Hash, false)
+			}
+		}
+	}()
+	return nil
+}
+
+func (k *Kaleidoscope) StopSync() {
+	k.stream.Close()
+}
+
+type Operation struct {
+	Type     string
+	Database string
+	Key      string
+	Hash     string
+}
+
 func (k *Kaleidoscope) set(dbname, root, key, value string) (string, error) {
 	enc, err := k.keystore.EncryptString(wrapWithMetadata(value))
 	if err != nil {
@@ -92,13 +130,29 @@ func (k *Kaleidoscope) set(dbname, root, key, value string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return k.setHash(dbname, root, key, hash, true)
+}
 
+func (k *Kaleidoscope) setHash(dbname, root, key, hash string, pub bool) (string, error) {
 	dbhash, err := k.client.ObjectPatchAddLink(root, key, hash, RequestOptions{})
 	if err != nil {
 		return "", err
 	}
 
 	k.use(dbname, dbhash)
+	if pub && k.stream.IsRunning() {
+		ope := Operation{
+			Type:     "set",
+			Database: k.dbname,
+			Key:      key,
+			Hash:     hash,
+		}
+		json, err := json.Marshal(ope)
+		if err != nil {
+			return "", err
+		}
+		k.client.PubSubPub(k.dbname, string(json), RequestOptions{})
+	}
 	return dbhash, err
 }
 
@@ -116,7 +170,3 @@ func (k Kaleidoscope) latest() string {
 func wrapWithMetadata(value string) string {
 	return strconv.FormatInt(time.Now().Unix(), 10) + "," + value
 }
-
-// func wrapWithMetadata(value string) io.Reader {
-// 	return strings.NewReader(strconv.FormatInt(time.Now().Unix(), 10) + "," + value)
-// }
